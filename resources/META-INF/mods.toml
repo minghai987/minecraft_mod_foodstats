@@ -4,10 +4,10 @@ license = "CC BY-NC-SA 4.0"    # 必填，协议名称
 
 [[mods]]                      # 仅保留一个 mods 块
 modId = "foodstats"           # 必填，模组ID
-version = "1.1.0"             # 必填，版本号
-displayName = "食物增强"        # 必填，显示名称
-description = '''通过进食获得永久属性增强'''  # 必填，描述
-authors = "溟海"              # 可选，作者
+version = "2.0.0"             # 必填，版本号
+displayName = "食物增强"        
+description = "通过进食获得永久属性增强"  
+authors = "nonentity"              # 可选，作者
 logoFile = "logo.png"         # 可选，图标文件
 
 # 依赖项配置（修复语法）
@@ -24,3 +24,10 @@ versionRange = "[1.20.1]"     # 严格匹配 1.20.1
 mandatory = true
 ordering = "NONE"
 side = "BOTH"
+
+[[dependencies.foodstats]]
+    modId="jei"
+    mandatory=false
+    versionRange="[15.2.0,)"
+    ordering="AFTER"
+    side="BOTH"
