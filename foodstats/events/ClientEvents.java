@@ -14,6 +14,7 @@ import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.registries.ForgeRegistries;
 
+
 @Mod.EventBusSubscriber(modid = FoodStatsMod.MODID, bus = Mod.EventBusSubscriber.Bus.FORGE, value = Dist.CLIENT)
 public class ClientEvents {
     
@@ -24,13 +25,15 @@ public class ClientEvents {
         Item item = stack.getItem();
         
         if (item.getFoodProperties() == null) return;
+        if (event.getEntity() == null || !event.getEntity().level().isClientSide) return;
 
         // 确保玩家实体存在
         if (event.getEntity() == null) return;
         
-        event.getEntity().getCapability(FoodStatsMod.PLAYER_STATS).ifPresent(stats -> {
-            ResourceLocation foodId = ForgeRegistries.ITEMS.getKey(item);
-            boolean isEaten = stats.getEatenFoods().contains(foodId);
+        if (event.getEntity().level().isClientSide) {
+            event.getEntity().getCapability(FoodStatsMod.PLAYER_STATS).ifPresent(stats -> {
+                ResourceLocation foodId = ForgeRegistries.ITEMS.getKey(item);
+                boolean isEaten = stats.getEatenFoods().contains(foodId);
 
             // 添加自定义提示
             if (isEaten) {
@@ -43,4 +46,5 @@ public class ClientEvents {
             }
         });
     }
+}
 }

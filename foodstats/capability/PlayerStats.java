@@ -4,12 +4,22 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.ResourceLocation;
 import java.util.HashSet;
 import java.util.Set;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
+import com.ming_hai.foodstats.config.Config;
+
+
 
 public class PlayerStats implements IPlayerStats {
     private int totalSaturation;
     private int buffCount; // 新增的 Buff 计数器
     private final Set<ResourceLocation> eatenFoods = new HashSet<>();
-
+    public int getCurrentSaturation() {
+        return totalSaturation % Config.THRESHOLD.get();
+    }
+    
+    
     @Override
     public int getTotalSaturation() {
         return totalSaturation;
@@ -44,29 +54,29 @@ public class PlayerStats implements IPlayerStats {
     @Override
     public void saveNBT(CompoundTag tag) {
         tag.putInt("TotalSaturation", totalSaturation);
-        tag.putInt("BuffCount", buffCount); // 保存计数器
+        tag.putInt("BuffCount", buffCount);
         
-        CompoundTag foodsTag = new CompoundTag();
-        int i = 0;
+        ListTag foodsTag = new ListTag();
         for (ResourceLocation food : eatenFoods) {
-            foodsTag.putString("Food_" + i++, food.toString());
+            foodsTag.add(StringTag.valueOf(food.toString()));
         }
         tag.put("EatenFoods", foodsTag);
     }
 
-    @Override
-    public void loadNBT(CompoundTag tag) {
-        totalSaturation = tag.getInt("TotalSaturation");
-        buffCount = tag.getInt("BuffCount"); // 加载计数器
-        
-        CompoundTag foodsTag = tag.getCompound("EatenFoods");
-        eatenFoods.clear();
-        for (String key : foodsTag.getAllKeys()) {
-            if (key.startsWith("Food_")) {
-                eatenFoods.add(new ResourceLocation(foodsTag.getString(key)));
-            }
-        }
+
+    @Override 
+public void loadNBT(CompoundTag tag) {
+    totalSaturation = tag.getInt("TotalSaturation");
+    buffCount = tag.getInt("BuffCount");
+    
+    eatenFoods.clear();
+    ListTag foodsTag = tag.getList("EatenFoods", Tag.TAG_STRING);
+    for (int i = 0; i < foodsTag.size(); i++) {
+        eatenFoods.add(new ResourceLocation(foodsTag.getString(i)));
     }
+}
+
+
 
     @Override
     public void reset() {
@@ -82,4 +92,9 @@ public class PlayerStats implements IPlayerStats {
         this.eatenFoods.clear();
         this.eatenFoods.addAll(other.getEatenFoods());
     }
+    public int getUniqueFoodCount() {
+        return eatenFoods.size();
+    }
+    
+    
 }
