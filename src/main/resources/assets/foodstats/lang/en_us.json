@@ -1,0 +1,6 @@
+{
+    "item.foodstats.debug_tool": "Debug Tool",
+    "foodstats.message.buff": "You feel your power growing",
+    "config.foodstats.title": "Food Enhancement Config",
+    "config.foodstats.option.threshold": "Base Saturation Threshold"
+  }
