@@ -54,5 +54,20 @@ public class ClientEvents {
                 }
             }
         }
+ // 新增：检查是否是方块食物
+    List<String> blockFoodItems = (List<String>) Config.BLOCK_FOOD_ITEMS.get();
+    ResourceLocation itemId = BuiltInRegistries.ITEM.getKey(stack.getItem());
+    if (blockFoodItems.contains(itemId.toString())) {
+        IPlayerStats stats = FoodStatsMod.getPlayerStats(event.getEntity());
+        if (stats != null) {
+            boolean isEaten = stats.getEatenFoods().contains(itemId);
+            event.getToolTip().add(isEaten ? 
+                Component.literal("已食用").withStyle(ChatFormatting.GREEN) :
+                Component.literal("还没吃过呢~，要不尝尝看？").withStyle(ChatFormatting.BLUE)
+            );
+        }
     }
+
+    }
+   
 }

@@ -21,6 +21,7 @@ import net.minecraft.world.food.FoodProperties;
 import java.util.UUID;
 import java.util.List;
 import java.util.function.BiConsumer;
+import net.minecraft.world.level.block.CakeBlock;
 
 public class PlayerEvents {
     private static final ResourceLocation HEALTH_MODIFIER_ID = ResourceLocation.fromNamespaceAndPath(FoodStatsMod.MODID, "health_bonus");
@@ -45,6 +46,7 @@ public class PlayerEvents {
         IPlayerStats stats = FoodStatsMod.getPlayerStats(player);
         if (stats != null) {
             applyPermanentBonus(player, stats.getHealthBonus(), stats.getArmorBonus(), stats.getAttackBonus()); 
+            FoodStatsMod.syncStats(player, stats);  // 新增同步
             FoodStatsMod.LOGGER.debug("玩家数据已更新");
             
             // 首次加入给予食物手册
@@ -88,6 +90,7 @@ public class PlayerEvents {
                 player.displayClientMessage(message, true);
                 
                 CHECK_THRESHOLD.accept(player, stats);
+                FoodStatsMod.syncStats(player, stats);      // 新增同步
             }
             FoodStatsMod.LOGGER.debug("玩家数据已更新");
         }
@@ -95,30 +98,17 @@ public class PlayerEvents {
 
 @SubscribeEvent
 public void onPlayerClone(PlayerEvent.Clone event) {
-    // 确保是从死亡克隆
     if (event.isWasDeath()) {
-        Player original = event.getOriginal();
-        Player newPlayer = event.getEntity();
-        
-        // 获取统计数据
-        IPlayerStats oldStats = FoodStatsMod.getPlayerStats(original);
-        IPlayerStats newStats = FoodStatsMod.getPlayerStats(newPlayer);
-        
-        if (oldStats != null && newStats != null) {
-            // 复制所有数据
-            newStats.copyFrom(oldStats);
-            
-            // 重新应用加成
-            applyPermanentBonus(newPlayer, 
-                newStats.getHealthBonus(), 
-                newStats.getArmorBonus(), 
-                newStats.getAttackBonus());
-            
-            // 同步到客户端
-            FoodStatsMod.syncStats(newPlayer, newStats);
-            
-            FoodStatsMod.LOGGER.info("玩家数据已从死亡实体复制到新实体");
+        // 手动复制食物手册标记
+        CompoundTag oldPersistent = event.getOriginal().getPersistentData();
+        CompoundTag newPersistent = event.getEntity().getPersistentData();
+        if (oldPersistent.contains("HasReceivedFoodGuide")) {
+            newPersistent.putBoolean("HasReceivedFoodGuide", 
+                oldPersistent.getBoolean("HasReceivedFoodGuide"));
+            FoodStatsMod.LOGGER.debug("已复制食物手册标记");
         }
+        // 系统已自动通过 copyOnDeath 复制其他数据
+        FoodStatsMod.LOGGER.debug("玩家死亡重生，数据已由系统自动复制");
     }
 }
 
@@ -128,6 +118,7 @@ public void onPlayerClone(PlayerEvent.Clone event) {
         int healthMax = Config.HEALTH_MAX.get();
         int armorMax = Config.ARMOR_MAX.get();
         int attackMax = Config.ATTACK_MAX.get();
+        int maxBuff = Config.MAX_BUFF_COUNT.get();  // 获取总加成次数上限（0表示无上限）
 
         int buffCount = stats.getBuffCount();
         boolean triggered = false;
@@ -136,6 +127,10 @@ public void onPlayerClone(PlayerEvent.Clone event) {
 
         while (loopCount < MAX_LOOPS) {
             loopCount++;
+            if (maxBuff > 0 && buffCount >= maxBuff) {
+            break;
+        }
+
             int nextThreshold = baseThreshold + buffCount * thresholdIncrease;
             int currentSaturation = stats.getCurrentSaturation();
 
@@ -183,6 +178,9 @@ public void onPlayerClone(PlayerEvent.Clone event) {
         int armorMax = Config.ARMOR_MAX.get();
         int attackMax = Config.ATTACK_MAX.get();
         
+        // 保存血量比例（避免绝对值失效）
+        float oldMaxHealth = player.getMaxHealth();
+        float healthRatio = (oldMaxHealth > 0) ? player.getHealth() / oldMaxHealth : 1.0f;
         // 血量加成
         AttributeInstance healthAttr = player.getAttribute(Attributes.MAX_HEALTH);
         if (healthAttr != null) {
@@ -247,5 +245,106 @@ public void onPlayerClone(PlayerEvent.Clone event) {
                 attackAttr.addTransientModifier(attackModifier);
             }
         }
+
+        // 按比例恢复血量
+    float newMaxHealth = player.getMaxHealth();
+    float newHealth = healthRatio * newMaxHealth;
+    if (newHealth > newMaxHealth) newHealth = newMaxHealth;
+    if (newHealth < 0) newHealth = 0;
+    player.setHealth(newHealth);
+    
+    FoodStatsMod.LOGGER.debug("应用永久加成: 血量比例={}, 新血量={}/{}", 
+        healthRatio, newHealth, newMaxHealth);
+    }
+
+     @SubscribeEvent
+    public void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
+        if (event.getLevel().isClientSide()) return;
+        Player player = event.getEntity();
+        BlockPos pos = event.getPos();
+        BlockState state = event.getLevel().getBlockState(pos);
+        Block block = state.getBlock();
+
+        // 检查配置中的方块食物
+        List<String> blockFoodItems = (List<String>) Config.BLOCK_FOOD_ITEMS.get();
+        ResourceLocation blockId = BuiltInRegistries.BLOCK.getKey(block);
+        if (blockId == null || !blockFoodItems.contains(blockId.toString())) return;
+
+        // 特殊处理：蛋糕（多片食用）
+        if (block instanceof CakeBlock) {
+            handleCakeEat(player, event.getLevel(), pos, state);
+        } else {
+            // 一次性方块食物：直接记录（假定右键即食用）
+            int nutrition = getNutritionForBlockFood(blockId);
+            // 可选：进一步验证玩家饥饿值是否变化（此处简化）
+            recordFoodEaten(player, blockId, nutrition);
+        }
+    }
+private void handleCakeEat(Player player, Level level, BlockPos pos, BlockState state) {
+        int oldBites = state.getValue(CakeBlock.BITES);
+        if (oldBites >= 6) return; // 蛋糕已吃完
+
+        level.getServer().execute(() -> {
+            BlockState newState = level.getBlockState(pos);
+            int newBites = newState.getValue(CakeBlock.BITES);
+            if (newBites > oldBites) {
+                onCakeEaten(player);
+            }
+        });
+    }
+
+ private void onCakeEaten(Player player) {
+        ResourceLocation foodId = ResourceLocation.parse("minecraft:cake");
+        IPlayerStats stats = FoodStatsMod.getPlayerStats(player);
+        if (stats == null) return;
+
+        // 获取蛋糕营养值（从配置读取）
+        List<String> blockFoodItems = (List<String>) Config.BLOCK_FOOD_ITEMS.get();
+        List<Integer> blockFoodNutrition = (List<Integer>) Config.BLOCK_FOOD_NUTRITION.get();
+        int nutrition = 0;
+        for (int i = 0; i < blockFoodItems.size(); i++) {
+            if (blockFoodItems.get(i).equals(foodId.toString())) {
+                nutrition = blockFoodNutrition.get(i);
+                break;
+            }
+        }
+        if (nutrition == 0) nutrition = 2; // 默认营养值
+
+        // 记录食用
+        if (!stats.getEatenFoods().contains(foodId)) {
+            stats.getEatenFoods().add(foodId);
+            player.displayClientMessage(Component.literal("§a新食物已记录"), true);
+        }
+        stats.addSaturation(nutrition);
+        CHECK_THRESHOLD.accept(player, stats);
+        FoodStatsMod.syncStats(player, stats);
+    }
+// 通用记录方法：增加饱食度、记录新食物、触发加成检查
+    private void recordFoodEaten(Player player, ResourceLocation foodId, int nutrition) {
+        List<String> blacklist = Config.FOOD_BLACKLIST.get();
+        if (blacklist.contains(foodId.toString())) return;
+
+        IPlayerStats stats = FoodStatsMod.getPlayerStats(player);
+        if (stats == null) return;
+
+        if (!stats.getEatenFoods().contains(foodId)) {
+            stats.getEatenFoods().add(foodId);
+            player.displayClientMessage(Component.literal("§a新食物已记录"), true);
+        }
+        stats.addSaturation(nutrition);
+        CHECK_THRESHOLD.accept(player, stats);
+        FoodStatsMod.syncStats(player, stats);
+    }
+
+
+     private int getNutritionForBlockFood(ResourceLocation blockId) {
+        List<String> blockFoodItems = (List<String>) Config.BLOCK_FOOD_ITEMS.get();
+        List<Integer> blockFoodNutrition = (List<Integer>) Config.BLOCK_FOOD_NUTRITION.get();
+        for (int i = 0; i < blockFoodItems.size(); i++) {
+            if (blockFoodItems.get(i).equals(blockId.toString())) {
+                return blockFoodNutrition.get(i);
+            }
+        }
+        return 2; // 默认营养值
     }
 }

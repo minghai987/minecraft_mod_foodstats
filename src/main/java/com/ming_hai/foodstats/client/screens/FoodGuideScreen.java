@@ -26,7 +26,7 @@ public class FoodGuideScreen extends Screen {
     private int currentPage = 0;
     private static final int GUI_WIDTH = 280;
     private static final int GUI_HEIGHT = 220;
-    private static final int ITEMS_PER_PAGE = 20;
+    private static final int ITEMS_PER_PAGE = 18;
     private List<ResourceLocation> allFoods;
     private List<ResourceLocation> uneatenFoods;
     private int eatenPages;
@@ -52,20 +52,23 @@ public class FoodGuideScreen extends Screen {
 
    private void initFoodLists() {
     List<String> blacklist = Config.FOOD_BLACKLIST.get();
+    List<String> blockFoodItems = (List<String>) Config.BLOCK_FOOD_ITEMS.get(); // 注意类型转换
 
-    // 获取所有食物
-    allFoods = BuiltInRegistries.ITEM.stream()
-        .filter(item -> item != null)
-        .filter(item -> {
-            ItemStack stack = new ItemStack(item);
-            FoodProperties foodProperties = stack.getFoodProperties(null);
-            return foodProperties != null;
-        })
-        .map(BuiltInRegistries.ITEM::getKey)
-        .filter(foodId -> foodId != null)
-        .filter(foodId -> !blacklist.contains(foodId.toString()))
-        .sorted(Comparator.comparing(ResourceLocation::toString))
-        .collect(Collectors.toList());
+    // 获取所有食物（包括方块食物）
+allFoods = BuiltInRegistries.ITEM.stream()
+    .filter(item -> item != null)
+    .filter(item -> {
+        ItemStack stack = new ItemStack(item);
+        // 普通食物
+        if (stack.getFoodProperties(null) != null) return true;
+        // 方块食物：物品ID在配置列表中
+        ResourceLocation id = BuiltInRegistries.ITEM.getKey(item);
+        return blockFoodItems.contains(id.toString());
+    })
+    .map(BuiltInRegistries.ITEM::getKey)
+    .filter(foodId -> !blacklist.contains(foodId.toString()))
+    .sorted(Comparator.comparing(ResourceLocation::toString))
+    .collect(Collectors.toList());
 
     // 获取未吃食物列表
     uneatenFoods = allFoods.stream()
@@ -372,28 +375,5 @@ public boolean mouseClicked(double mouseX, double mouseY, int button) {
     return super.mouseClicked(mouseX, mouseY, button);
 }
 
-// FoodGuideScreen.java - 修复右键方法
-private void showRecipes(ItemStack stack) {
-    // 修复：检查客户端和 JEI 加载状态
-    if (minecraft == null || minecraft.level == null) {
-        return;
-    }
-    
-    // 修复：使用更可靠的方式调用 JEI
-    boolean success = com.ming_hai.foodstats.compat.JEIIntegration.showRecipes(stack);
-    
-    if (success) {
-        // 成功显示配方，关闭当前界面
-        minecraft.setScreen(null);
-        FoodStatsMod.LOGGER.debug("成功显示 JEI 配方");
-    } else {
-        // 显示失败信息
-        if (minecraft.player != null) {
-            minecraft.player.displayClientMessage(
-                Component.literal("§c无法显示配方，请确保 JEI 已安装并正确加载"),
-                false
-            );
-        }
-    }
-}
+
 }

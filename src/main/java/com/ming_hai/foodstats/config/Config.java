@@ -20,6 +20,10 @@ public class Config {
     public static final ModConfigSpec.DoubleValue BASE_HEALTH;
     public static final ModConfigSpec.ConfigValue<List<String>> FOOD_BLACKLIST;
     public static final ModConfigSpec.BooleanValue START_WITH_GUIDE;
+    // 方块食物配置：记录物品ID、每次食用的营养值、是否可作为食物（用于图鉴）
+    public static final ModConfigSpec.ConfigValue<List<? extends String>> BLOCK_FOOD_ITEMS;
+    public static final ModConfigSpec.ConfigValue<List<? extends Integer>> BLOCK_FOOD_NUTRITION;
+
 
     static {
         ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
@@ -68,6 +72,16 @@ public class Config {
             .define("show_message_above_hotbar", true);
         builder.pop();
 
+
+         builder.push("方块食物设置");
+        BLOCK_FOOD_ITEMS = builder
+            .comment("方块食物列表（物品ID），例如 minecraft:cake")
+            .defineList("block_food_items", List.of("minecraft:cake"), o -> o instanceof String);
+        BLOCK_FOOD_NUTRITION = builder
+            .comment("对应上方列表的营养值，顺序必须一致")
+            .defineList("block_food_nutrition", List.of(2), o -> o instanceof Integer);
+        builder.pop();
+
         SPEC = builder.build();
     }
 
@@ -77,5 +91,7 @@ public class Config {
     
     public static void sync() {
         SPEC.save();
+
+
     }
 }

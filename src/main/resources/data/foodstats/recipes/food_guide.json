@@ -21,5 +21,18 @@
   "result": {
     "id": "foodstats:food_guide",
     "count": 1
+  },
+  "unlockedBy": {
+    "has_paper": {
+      "trigger": "minecraft:inventory_changed",
+      "conditions": {
+        "items": [
+          {
+            "items": ["minecraft:paper"]
+          }
+        ]
+      }
+    }
   }
+
 }
