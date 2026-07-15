@@ -1,0 +1,24 @@
+modLoader = "javafml"
+loaderVersion = "[4,)"
+license = "CC BY-NC-SA 4.0"
+
+[[mods]]
+modId = "foodstats"
+version = "${mod_version}"
+displayName = "食物增强"
+description = "${mod_description}"
+authors = "${mod_authors}"
+
+[[dependencies.foodstats]]
+modId = "neoforge"
+mandatory = true
+versionRange = "${neo_version_range}"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.foodstats]]
+modId = "minecraft"
+mandatory = true
+versionRange = "${minecraft_version_range}"
+ordering = "NONE"
+side = "BOTH"
