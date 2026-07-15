@@ -25,7 +25,7 @@
 |--------|------|
 | ming_hai | 项目创始人，v3.0.0 开发 |
 | QF | v3.0.2：增益模式系统、Cloth Config、指令扩展、配置同步 |
-|  | v3.0.3：森罗物语：酒馆兼容 |
+| QF | v3.0.3：森罗物语：酒馆兼容 |
 
 
 [![CC BY-NC-SA 4.0](https://licensebuttons.net/l/by-nc-sa/4.0/88x31.png)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
