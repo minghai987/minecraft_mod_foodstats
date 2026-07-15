@@ -1,6 +1,7 @@
 # 食物增强 (FoodStats)
 
 [![Version](https://img.shields.io/badge/version-3.0.3-blue)](https://github.com/minghai987/minecraft_mod_foodstats/releases)
+[![Forge](https://img.shields.io/badge/Forge-1.20.1-slategray)](https://files.minecraftforge.net/)
 [![NeoForge](https://img.shields.io/badge/NeoForge-1.21.1-orange)](https://neoforged.net/)
 [![License](https://img.shields.io/badge/license-CC%20BY--NC--SA%204.0-green)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
 
